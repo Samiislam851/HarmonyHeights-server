@@ -1,7 +1,7 @@
 let express = require("express")
 let cors = require("cors")
- let app = express();
- const jwt = require('jsonwebtoken');
+let app = express();
+const jwt = require('jsonwebtoken');
 require('dotenv').config()
 const stripe = require('stripe')('sk_test_51NIabfCpvBGNsqQsxWU6lqpGW7YoVmaDdsq28EqNEByu3ROVDdTb9Qifm1qH5HPOF5nEDX5fbrannrp6GgkBmZHR00pljdX5dR')
 app.use(cors())
@@ -10,8 +10,8 @@ let port = process.env.PORT || 5000;
 let { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
 app.get('/hello', async (req, res) => {
- 
-res.send("hello" );
+
+  res.send("hello");
 })
 
 const verifyJWT = (req, res, next) => {
@@ -32,7 +32,7 @@ const verifyJWT = (req, res, next) => {
 }
 
 let uri = 'mongodb+srv://samisiam851:IzxHVRpaCCZiyoO9@cluster0.lkouiuy.mongodb.net/?retryWrites=true&w=majority';
-let users = []; 
+let users = [];
 let client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -49,6 +49,7 @@ async function run() {
     let classes = database.collection("classes")
     let enrolledClasses = database.collection("enrolledclasses")
     const usersCollection = database.collection("users");
+    const blogs = database.collection("blogs");
     app.post('/jwt', (req, res) => {
       const user = req.body;
       const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
@@ -56,8 +57,8 @@ async function run() {
       res.send({ token })
     })
     app.get('/email', verifyJWT, async (req, res) => {
-        console.log(req.decoded)
-      res.send(req.decoded.email );
+      console.log(req.decoded)
+      res.send(req.decoded.email);
     })
     const verifyAdmin = async (req, res, next) => {
       const email = req.decoded.email;
@@ -73,9 +74,9 @@ async function run() {
       const user = req.body;
       const query = { email: user.email }
       const existingUser = await usersCollection.findOne(query);
-      
+
       if (existingUser) {
-        return res.send({ message: 'user already exists', data:existingUser })
+        return res.send({ message: 'user already exists', data: existingUser })
       }
 
       const result = await usersCollection.insertOne(user);
@@ -86,7 +87,7 @@ async function run() {
     //   res.send(result);
     // });
 
-// payment 
+    // payment 
 
     // create payment intent
 
@@ -113,59 +114,75 @@ async function run() {
       })
     })
 
+    app.get('/blog', async (req, res) => {
+      const result = await blogs.find().toArray();
+      res.send(result);
+    })
+
+    app.get('/blog/:id', async (req, res) => {
+      const id = req.params.id;
+      
+      const result = await blogs.findOne({_id:id});
+      // console.log('the result is : ',result);
+       res.send(result);
+    })
+
+
+
+
 
     // payment related api
     app.post('/payments/:id', async (req, res) => {
       let id = req.params.id
       const data = req.body;
-       const filter = {_id:new ObjectId(id)};
+      const filter = { _id: new ObjectId(id) };
       const updateDoc = {
         $set: {
           transactionId: data.transactionId,
-          price:data.price,
-          date: data.date, 
-        enrolled:true
+          price: data.price,
+          date: data.date,
+          enrolled: true
         },
       };
 
       const result = await enrolledClasses.updateOne(filter, updateDoc);
 
-      let enrolledClassesFIndbyid  =await enrolledClasses.findOne({ _id: new ObjectId(req.params.id) });
+      let enrolledClassesFIndbyid = await enrolledClasses.findOne({ _id: new ObjectId(req.params.id) });
       let classid = enrolledClassesFIndbyid.classid
-      
-           let findClassdetails  =await classes.findOne({ _id: new ObjectId(classid) });
-let availableseat = findClassdetails.availableseat-1 ;
-let enrolledstudents = findClassdetails.enrolledstudents+1 ;
-let _id = findClassdetails._id ;
-const filter2 = {_id:new ObjectId(_id)};
-const updateDoc2 = {
-  $set: {
-    availableseat:availableseat,
-    enrolledstudents:enrolledstudents,   
-  },
-};
 
-const result2 = await classes.updateOne(filter2, updateDoc2);
+      let findClassdetails = await classes.findOne({ _id: new ObjectId(classid) });
+      let availableseat = findClassdetails.availableseat - 1;
+      let enrolledstudents = findClassdetails.enrolledstudents + 1;
+      let _id = findClassdetails._id;
+      const filter2 = { _id: new ObjectId(_id) };
+      const updateDoc2 = {
+        $set: {
+          availableseat: availableseat,
+          enrolledstudents: enrolledstudents,
+        },
+      };
+
+      const result2 = await classes.updateOne(filter2, updateDoc2);
 
 
       res.send(result2);
     })
-//     app.get('/paymentstest/:id', async (req, res) => {
-//       let enrolledClassesFIndbyid  =await enrolledClasses.findOne({ _id: new ObjectId(req.params.id) });
-//  let classid = enrolledClassesFIndbyid.classid
- 
-//       let findClassdetails  =await classes.findOne({ _id: new ObjectId(classid) });
-//       res.send(findClassdetails)
-//     })
+    //     app.get('/paymentstest/:id', async (req, res) => {
+    //       let enrolledClassesFIndbyid  =await enrolledClasses.findOne({ _id: new ObjectId(req.params.id) });
+    //  let classid = enrolledClassesFIndbyid.classid
+
+    //       let findClassdetails  =await classes.findOne({ _id: new ObjectId(classid) });
+    //       res.send(findClassdetails)
+    //     })
 
 
-    app.get('/enrolledclasses/:email', async(req, res) =>{
+    app.get('/enrolledclasses/:email', async (req, res) => {
       let email = req.params.email
       const pipeline = [
         {
           $match: {
             email: email,
-            enrolled:true
+            enrolled: true
           }
         },
         {
@@ -177,23 +194,23 @@ const result2 = await classes.updateOne(filter2, updateDoc2);
           }
         }
       ];
-      
+
       const result = await enrolledClasses.aggregate(pipeline).toArray();
       res.send(result);
-      
+
     })
 
-    app.get('/addnow', async(req, res) =>{
-      const pipeline =[
-        
+    app.get('/addnow', async (req, res) => {
+      const pipeline = [
+
         {
           $match: {
             email: "rsnmiraj@gmail.com"
           },
           '$lookup': {
-            'from': 'classes', 
-            'localField': 'classid', 
-            'foreignField': '_id', 
+            'from': 'classes',
+            'localField': 'classid',
+            'foreignField': '_id',
             'as': 'result'
           }
         }
@@ -206,18 +223,18 @@ const result2 = await classes.updateOne(filter2, updateDoc2);
 
 
 
-    app.get('/users',  async (req, res) => {
+    app.get('/users', async (req, res) => {
       const result = await usersCollection.find().toArray();
       res.send(result);
     });
-    app.get('/selectedclass/:email', async (req, res) => { 
+    app.get('/selectedclass/:email', async (req, res) => {
 
-    let email = req.params.email
+      let email = req.params.email
       const pipeline = [
         {
           $match: {
             email: email,
-            enrolled:false
+            enrolled: false
           }
         },
         {
@@ -229,40 +246,40 @@ const result2 = await classes.updateOne(filter2, updateDoc2);
           }
         }
       ];
-      
+
       const result = await enrolledClasses.aggregate(pipeline).toArray();
       res.send(result);
 
     });
-    
+
     app.delete('/selectedclass/delete/:id', async (req, res) => {
-           let deleteId = req.params.id
-           let email = req.params.email
+      let deleteId = req.params.id
+      let email = req.params.email
       let query = {
         _id: new ObjectId(deleteId),
-       
+
 
       }
       let deleteData = await enrolledClasses.deleteOne(query);
       if (deleteData.deletedCount == 1) {
-           res.send("Succesfully Deleted")
+        res.send("Succesfully Deleted")
       } else {
         res.send(" Deleted Failed")
 
       }
 
     });
- 
+
     app.post("/select/class/", async (req, res) => {
-      let data = { ...req.body }; 
-      const query = { classid:new ObjectId(data.classid)  , email:data.email}
+      let data = { ...req.body };
+      const query = { classid: new ObjectId(data.classid), email: data.email }
       const existingData = await enrolledClasses.findOne(query);
 
       if (existingData) {
         return res.send({ message: 'exist' })
       }
       data['classid'] = new ObjectId(data.classid)
-     let result = await enrolledClasses.insertOne(data)
+      let result = await enrolledClasses.insertOne(data)
       res.send(JSON.stringify(result))
     })
 
@@ -297,8 +314,8 @@ const result2 = await classes.updateOne(filter2, updateDoc2);
     })
 
     app.post("/addclass", async (req, res) => {
-      let data = { ...req.body }; 
-     let result = await classes.insertOne(data)
+      let data = { ...req.body };
+      let result = await classes.insertOne(data)
       res.send(JSON.stringify(result))
     })
 
@@ -309,39 +326,39 @@ const result2 = await classes.updateOne(filter2, updateDoc2);
 
     });
 
-    app.get("/classes/all", async (req, res) => { 
-       let cursor = classes.find({status:'approved'});
+    app.get("/classes/all", async (req, res) => {
+      let cursor = classes.find({ status: 'approved' });
       let result = await cursor.toArray();
       res.send(result);
 
     });
-    app.get("/admin/classes/all", async (req, res) => { 
-       let cursor = classes.find();
+    app.get("/admin/classes/all", async (req, res) => {
+      let cursor = classes.find();
       let result = await cursor.toArray();
       res.send(result);
 
     });
-    app.get("/instructor/all", async (req, res) => { 
-       let cursor = usersCollection.find({ role: "instructor" });
+    app.get("/instructor/all", async (req, res) => {
+      let cursor = usersCollection.find({ role: "instructor" });
       let result = await cursor.limit(6).toArray()
       res.send(result);
 
     });
-    app.get("/popularclasses", async (req, res) => { 
+    app.get("/popularclasses", async (req, res) => {
       let cursor = classes.find().sort({ enrolledstudents: -1 });
       let result = await cursor.limit(6).toArray();
       res.send(result);
- 
-  });
 
-  app.get("/paymenthistory/:email", async (req, res) => { 
-    
-    let email = req.params.email
+    });
+
+    app.get("/paymenthistory/:email", async (req, res) => {
+
+      let email = req.params.email
       const pipeline = [
         {
           $match: {
-            email:req.params.email,
-            enrolled:true
+            email: req.params.email,
+            enrolled: true
           }
         },
         {
@@ -359,19 +376,19 @@ const result2 = await classes.updateOne(filter2, updateDoc2);
           }
         }
       ];
-      
+
       const result = await enrolledClasses.aggregate(pipeline).toArray();
       res.send(result);
 
-});
+    });
 
 
-  app.get("/popularinstructor", async (req, res) => { 
-    let cursor = usersCollection.find({role:'instructor'});
-    let result = await cursor.limit(6).toArray();
-    res.send(result);
+    app.get("/popularinstructor", async (req, res) => {
+      let cursor = usersCollection.find({ role: 'instructor' });
+      let result = await cursor.limit(6).toArray();
+      res.send(result);
 
-});
+    });
 
     app.get("/class/:classid", async (req, res) => {
       let toyid = req.params.classid
@@ -380,7 +397,7 @@ const result2 = await classes.updateOne(filter2, updateDoc2);
       res.send(result)
     })
 
-    
+
     app.put("/class/update/:id", async (req, res) => {
       let updateId = req.params.id
       let filter = {
@@ -404,7 +421,7 @@ const result2 = await classes.updateOne(filter2, updateDoc2);
       let options = { upsert: true };
       let updateDoc = {
         $set: {
-          status:'approved'
+          status: 'approved'
         },
       };
       let result = await classes.updateOne(filter, updateDoc, options);
@@ -419,7 +436,7 @@ const result2 = await classes.updateOne(filter2, updateDoc2);
       let options = { upsert: true };
       let updateDoc = {
         $set: {
-          status:'denied'
+          status: 'denied'
         },
       };
       let result = await classes.updateOne(filter, updateDoc, options);
@@ -433,7 +450,7 @@ const result2 = await classes.updateOne(filter2, updateDoc2);
       let options = { upsert: true };
       let updateDoc = {
         $set: {
-          status:'pending'
+          status: 'pending'
         },
       };
       let result = await classes.updateOne(filter, updateDoc, options);
@@ -441,24 +458,24 @@ const result2 = await classes.updateOne(filter2, updateDoc2);
     })
 
     app.put("/class/feedback/:id", async (req, res) => {
-     let feedback = req.body.feedback;
-     let updateId = req.params.id
-     let filter = {
-       _id: new ObjectId(updateId)
-     }
-     let options = { upsert: true };
-     let updateDoc = {
-       $set: {
-        feedback:feedback
-       },
-     };
-     let result = await classes.updateOne(filter, updateDoc, options);
-     res.send(JSON.stringify(result))
+      let feedback = req.body.feedback;
+      let updateId = req.params.id
+      let filter = {
+        _id: new ObjectId(updateId)
+      }
+      let options = { upsert: true };
+      let updateDoc = {
+        $set: {
+          feedback: feedback
+        },
+      };
+      let result = await classes.updateOne(filter, updateDoc, options);
+      res.send(JSON.stringify(result))
     })
 
 
 
- 
+
 
   } finally {
     // Ensures that the client will close when you finish/error
